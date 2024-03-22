@@ -4,7 +4,7 @@
 VENV_PATH := .venv
 
 # Specify the package name
-PACKAGE = my_package
+PACKAGE = isdf_prototyping
 
 # Ensures all commands for a given target are run in the same shell
 # Facilitates running installations in the specified venv
