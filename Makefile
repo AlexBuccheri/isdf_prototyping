@@ -57,8 +57,8 @@ format:
 	isort tests/
 	black src/${PACKAGE}
 	black tests/
-	ruff check src/${PACKAGE}
-	ruff check tests/
+	ruff check src/${PACKAGE} --fix
+	ruff check tests/ --fix
 
 # Check formatting
 check-format:
