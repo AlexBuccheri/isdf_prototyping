@@ -1,0 +1,78 @@
+[build-system]
+requires = ["setuptools >= 61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "isdf-prototyping"
+version = "0.0.1"
+authors = [{name = "Alex Buccheri"}]
+readme = "README.md"
+requires-python = ">=3.9"
+dependencies = [
+  "jupyter>=1.0.0",
+  "matplotlib==3.8.0",
+  "numpy==1.26.1",
+  "scipy=>1.10.0"
+]
+
+[project.urls]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+
+[project.optional-dependencies]
+dev = [
+  "ruff>=0.1.8",
+  "black>=22.10.0",
+  "isort>=5.10.1",
+  "pip-tools>=6.10.0",
+  "pytest>=7.2.0",
+  "pytest-cov>=4.0.0",
+  "sphinx>=7.2.6",
+  "sphinx-rtd-theme==2.0.0",
+  "tox>=4.11.4"
+]
+
+# linting config
+[tool.ruff.lint]
+ignore = ["E501",  # line too long
+  "E731"           # I like to name lambdas
+]
+
+# isort config
+[tool.isort]
+profile = "black"
+line_length = 79
+skip = [".env/", "venv/", ".venv/"]
+
+# coverage config
+[tool.coverage.paths]
+source = ["src"]
+
+[tool.coverage.run]
+branch = true
+relative_files = true
+
+[tool.coverage.report]
+show_missing = true
+fail_under = 80
+
+# formatting config
+[tool.black]
+line-length = 79
+extend-exclude = '''
+/(
+  | .env
+  | .venv
+  | venv
+  | notebooks
+)/
+'''
+
+[tool.pytest.ini_options]
+minversion = "6.0"
+addopts = "-v --doctest-modules"
+testpaths = [
+    "tests",
+]
