@@ -3,15 +3,18 @@
 * QR decomposition with column pivoting
 * Weighted k-means clustering
 """
+
 from typing import List
 
 import numpy as np
 from scipy.spatial.distance import cdist
 
-
 cluster_type = List[List[int]]
 
-def assign_points_to_centroids(grid_points: np.ndarray, centroids: np.ndarray) -> cluster_type:
+
+def assign_points_to_centroids(
+    grid_points: np.ndarray, centroids: np.ndarray
+) -> cluster_type:
     """
 
     :return: clusters: List of length N interpolation points. Each element corresponds to a cluster,
@@ -32,8 +35,10 @@ def assign_points_to_centroids(grid_points: np.ndarray, centroids: np.ndarray) -
     return clusters
 
 
-def update_centroids(grid_points, f_weight, clusters: cluster_type) -> np.ndarray:
-    """ Compute a new set of centroids
+def update_centroids(
+    grid_points, f_weight, clusters: cluster_type
+) -> np.ndarray:
+    """Compute a new set of centroids
 
     Have as many clusters as we do centroids
 
@@ -56,9 +61,8 @@ def update_centroids(grid_points, f_weight, clusters: cluster_type) -> np.ndarra
     return updated_centroids
 
 
-
 def points_are_converged(updated_points, points, tol, verbose=False) -> bool:
-    """ Given the difference in two sets of points, determine whether the updated
+    """Given the difference in two sets of points, determine whether the updated
     points are sufficiently close to the prior points.
 
     :param updated_points:
@@ -73,12 +77,14 @@ def points_are_converged(updated_points, points, tol, verbose=False) -> bool:
     if verbose:
         N = updated_points.shape[0]
         if converged:
-            print(f'Convergence: All points converged')
+            print(f"Convergence: All points converged")
         else:
-            print(f'Convergence: {len(indices)} points out of {N} are not converged:')
-            print('# Current Point    Prior Point    |ri - r_{i-1}|   tol')
+            print(
+                f"Convergence: {len(indices)} points out of {N} are not converged:"
+            )
+            print("# Current Point    Prior Point    |ri - r_{i-1}|   tol")
             for i in indices:
-                print(updated_points[i, :], points[i, :], norm[i], tol
+                print(updated_points[i, :], points[i, :], norm[i], tol)
 
     return converged
 
@@ -97,7 +103,7 @@ def points_are_converged(updated_points, points, tol, verbose=False) -> bool:
 
 
 def is_subgrid_on_grid(subgrid, grid, tol) -> np.ndarray:
-    """ Return indices of subgrid points not present in grid.
+    """Return indices of subgrid points not present in grid.
 
     :param subgrid:
     :param grid:
@@ -109,8 +115,15 @@ def is_subgrid_on_grid(subgrid, grid, tol) -> np.ndarray:
     return indices
 
 
-def weighted_kmeans(grid_points: np.ndarray, f_weight: np.ndarray, centroids: np.ndarray, n_iter=200, centroid_tol=1.e-6,
-                    safe_mode=False, verbose=True) -> np.ndarray:
+def weighted_kmeans(
+    grid_points: np.ndarray,
+    f_weight: np.ndarray,
+    centroids: np.ndarray,
+    n_iter=200,
+    centroid_tol=1.0e-6,
+    safe_mode=False,
+    verbose=True,
+) -> np.ndarray:
     """
 
     TODOs:
@@ -130,10 +143,12 @@ def weighted_kmeans(grid_points: np.ndarray, f_weight: np.ndarray, centroids: np
     :return: interpolation_points: Grid points for interpolating vectors, as defined by optimised centroids
     """
     if safe_mode:
-        indices = is_subgrid_on_grid(centroids, grid_points, 1.e-6)
+        indices = is_subgrid_on_grid(centroids, grid_points, 1.0e-6)
         n_off_grid = len(indices)
-        if n_off_grid> 0:
-            print(f'{n_off_grid} out of {centroids.shape[0]} centroids are not defined on the real-space grid')
+        if n_off_grid > 0:
+            print(
+                f"{n_off_grid} out of {centroids.shape[0]} centroids are not defined on the real-space grid"
+            )
             print("# Index     Point")
             for i in indices:
                 print(i, centroids[i, :])
@@ -142,18 +157,24 @@ def weighted_kmeans(grid_points: np.ndarray, f_weight: np.ndarray, centroids: np
     N_r, dim = grid_points.shape
 
     if f_weight.shape[0] == N_r:
-        err_msg = ("Number of sampling points defining the weight function differs to the size of the grid\n. "
-                   "Weight function must be defined on the same real-space grid as grid_points")
+        err_msg = (
+            "Number of sampling points defining the weight function differs to the size of the grid\n. "
+            "Weight function must be defined on the same real-space grid as grid_points"
+        )
         raise ValueError(err_msg)
 
-    if verbose: print("Centroid Optimisation")
+    if verbose:
+        print("Centroid Optimisation")
     updated_centroids = np.empty_like(centroids)
 
     for t in range(0, n_iter):
         clusters = assign_points_to_centroids(grid_points, centroids)
         updated_centroids = update_centroids(grid_points, f_weight, clusters)
-        if verbose: print(f"Step {t}")
-        converged = points_are_converged(centroids, updated_centroids, centroid_tol, verbose=verbose)
+        if verbose:
+            print(f"Step {t}")
+        converged = points_are_converged(
+            centroids, updated_centroids, centroid_tol, verbose=verbose
+        )
         if converged:
             return updated_centroids
         centroids = updated_centroids
