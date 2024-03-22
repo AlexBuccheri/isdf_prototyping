@@ -89,29 +89,26 @@ def points_are_converged(updated_points, points, tol, verbose=False) -> bool:
     return converged
 
 
-# See below for refactor
-#     # This should be refactored with linear algebra
-#     for i, centroid in enumerate(centroids):
-#         centroid_in_grid = False
-#         for grid_point in grid_points:
-#             diff = centroid - grid_point
-#             if np.linalg.norm(diff) <= tol:
-#                 centroid_in_grid = True
-#                 break
-#         if not centroid_in_grid:
-#             raise ValueError(f'Centroid point {centroid} with index {i} was not found in real-space grid')
-
-
-def is_subgrid_on_grid(subgrid, grid, tol) -> np.ndarray:
+def is_subgrid_on_grid(subgrid: np.ndarray, grid: np.ndarray, tol: float) -> list:
     """Return indices of subgrid points not present in grid.
+
+    Parallelisation:
+    * Won't benefit from Numba, as only called once
+    * Loop shouldn't be large enough to parallelise with MPI
+      - One could thread it
+    * Function might benefit from cupy
 
     :param subgrid:
     :param grid:
     :return:
     """
-    distance_matrix = cdist(subgrid, grid)
-    upper_tri_indices = np.triu_indices(distance_matrix.shape[0], k=1)
-    indices = np.argwhere(distance_matrix[upper_tri_indices] <= tol)[0]
+    N_sub = subgrid.shape[0]
+    indices = []
+    for i in range(N_sub):
+        centred_on_point_i = np.linalg.norm(grid - subgrid[i], axis=1)
+        matched_indices = np.argwhere(centred_on_point_i <= tol)
+        if matched_indices.size == 0:
+            indices.append(i)
     return indices
 
 
