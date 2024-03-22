@@ -60,7 +60,7 @@ fail_under = 80
 
 # formatting config
 [tool.black]
-line-length = 79
+line-length = 110
 extend-exclude = '''
 /(
   | .env
