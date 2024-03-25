@@ -4,7 +4,7 @@ import numpy as np
 
 from src.isdf_prototyping.interpolation_points import (
     assign_points_to_centroids,
-    is_subgrid_on_grid,
+    is_subgrid_on_grid, update_centroids,
 )
 
 
@@ -90,12 +90,23 @@ def test_update_centroids():
     grid = np.array([[0, 0], [0, 1], [1, 0], [1, 1],
                      [2, 0], [3, 0], [2, 1], [3, 1]])
 
-    assert grid.shape == (8, 2), 'Npoints x dimensions'
+    N_r = 8
+    assert grid.shape == (N_r, 2), 'Npoints x dimensions'
     centroids = np.array([[0.5, 0.5], [2.5, 0.5]])
 
     expected_clusters = [[0, 1, 2, 3], [4, 5, 6, 7]]
     clusters = assign_points_to_centroids(grid, centroids)
     assert clusters == expected_clusters
+
+    # Centroids are chosen in optimal positions.
+    # With uniform weighting, one does not expect them to change
+    uniform_weight = np.empty(shape=N_r)
+    uniform_weight.fill(1. / N_r)
+    new_centroids = update_centroids(grid, uniform_weight, expected_clusters)
+    assert np.allclose(new_centroids, centroids)
+
+    # Optimally-positioned centroids with some noise added
+
 
 
 def test_points_are_converged():

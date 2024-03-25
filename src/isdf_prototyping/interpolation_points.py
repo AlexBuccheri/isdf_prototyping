@@ -96,7 +96,7 @@ def update_centroids(grid_points, f_weight, clusters: cluster_type) -> np.ndarra
         grid_indices = np.asarray(clusters[icen])
         # Part of the weight function associated with this cluster
         weights = f_weight[grid_indices]
-        weighted_pos = np.sum(grid_points[grid_indices] * weights)
+        weighted_pos = np.sum(grid_points[grid_indices] * weights[:, np.newaxis], axis=0)
         updated_centroids[icen, :] = weighted_pos / np.sum(weights)
     return updated_centroids
 
