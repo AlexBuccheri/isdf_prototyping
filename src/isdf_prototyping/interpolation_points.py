@@ -3,9 +3,9 @@
 * QR decomposition with column pivoting
 * Weighted k-means clustering
 """
+
 from typing import List
 
-import numba
 import numpy as np
 from scipy.spatial.distance import cdist
 
@@ -36,7 +36,7 @@ def is_subgrid_on_grid(subgrid: np.ndarray, grid: np.ndarray, tol: float) -> lis
 
 
 def assign_points_to_centroids(grid_points: np.ndarray, centroids: np.ndarray) -> cluster_type:
-    """ Assign each grid point to the closest centroid. A centroid and its set of nearest
+    """Assign each grid point to the closest centroid. A centroid and its set of nearest
     grid points defines a cluster.
 
     Refactor:
@@ -66,14 +66,13 @@ def assign_points_to_centroids(grid_points: np.ndarray, centroids: np.ndarray) -
         # Need to retain a 2D array for cdist
         point = grid_points[ir, :][None, :]
         # distance matrix has shape (1, N_interp)
-        distance_matrix = cdist(point, centroids)
+        distance_matrix = cdist(point, centroids).reshape(-1)
         # min(|r_{ir} - centroids|)
+        min_index = np.argmin(distance_matrix)
         # If two or more elements are equally minimal, argmin will always return the first instance
         # Instead, we find all equally minimum indices
-        min_indices = np.argwhere(distance_matrix == distance_matrix.min())
-        # Reduce to the second column (which contains the meaningful data), and choose one index at random
-        random_index = np.random.choice(min_indices[:, 1])
-        icen = min_indices[random_index, 1]
+        min_indices = np.argwhere(distance_matrix == distance_matrix[min_index])[:, 0]
+        icen = np.random.choice(min_indices)
         clusters[icen].append(ir)
     return clusters
 
@@ -134,13 +133,13 @@ def verbose_print(*args, verbose=True, **kwargs):
 
 
 def weighted_kmeans(
-        grid_points: np.ndarray,
-        f_weight: np.ndarray,
-        centroids: np.ndarray,
-        n_iter=200,
-        centroid_tol=1.0e-6,
-        safe_mode=False,
-        verbose=True,
+    grid_points: np.ndarray,
+    f_weight: np.ndarray,
+    centroids: np.ndarray,
+    n_iter=200,
+    centroid_tol=1.0e-6,
+    safe_mode=False,
+    verbose=True,
 ) -> np.ndarray:
     """
 
@@ -189,8 +188,7 @@ def weighted_kmeans(
         verbose_print(f"Step {t}", verbose)
         converged = points_are_converged(centroids, updated_centroids, centroid_tol, verbose=verbose)
         if converged:
-            return updated_centroids
+            return updated_centroids, t
         centroids = updated_centroids
 
-    # Should return number of iterations
-    return centroids
+    return centroids, t

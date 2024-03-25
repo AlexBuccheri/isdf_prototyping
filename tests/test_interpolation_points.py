@@ -1,7 +1,11 @@
-import numpy as np
 from unittest.mock import patch
 
-from src.isdf_prototyping.interpolation_points import is_subgrid_on_grid, assign_points_to_centroids
+import numpy as np
+
+from src.isdf_prototyping.interpolation_points import (
+    assign_points_to_centroids,
+    is_subgrid_on_grid,
+)
 
 
 def construct_2d_grid(x_p, y_p) -> np.ndarray:
@@ -22,7 +26,6 @@ def construct_2d_grid(x_p, y_p) -> np.ndarray:
 
 
 def test_is_subgrid_on_grid():
-
     # 2D grid, using arbitrary limits
     grid = construct_2d_grid((0, 10, 5), (0, 1, 5))
     assert grid.shape == (25, 2), "N grid points by M dimensions"
@@ -64,11 +67,10 @@ def test_assign_points_to_centroids():
 
 
 def test_assign_points_equidistant_to_centroids():
-    """ Test assignment of points that are equidistant to two centroids
-    """
+    """Test assignment of points that are equidistant to two centroids"""
     # Three points all equidistant between two centroids
-    grid = np.array([[0, 0], [0.5, 0.5], [1., 1.]])
-    centroids = np.array([[0., 1.], [1., 0]])
+    grid = np.array([[0, 0], [0.5, 0.5], [1.0, 1.0]])
+    centroids = np.array([[0.0, 1.0], [1.0, 0]])
 
     clusters = assign_points_to_centroids(grid, centroids)
     assert set(clusters[0]) | set(clusters[1]) == {0, 1, 2}, \
@@ -77,23 +79,51 @@ def test_assign_points_equidistant_to_centroids():
     with patch("isdf_prototyping.interpolation_points.np.random.choice") as mock_random:
         mock_random.return_value = 0
         clusters = assign_points_to_centroids(grid, centroids)
-        assert clusters == [[0, 1, 2], []], 'Mock random so all equi-d points go to cluster 0'
+        assert clusters == [[0, 1, 2], []], "Mock random so all equi-d points go to cluster 0"
 
         mock_random.return_value = 1
         clusters = assign_points_to_centroids(grid, centroids)
-        assert clusters == [[], [0, 1, 2]], 'Mock random so all equi-d points go to cluster 1'
+        assert clusters == [[], [0, 1, 2]], "Mock random so all equi-d points go to cluster 1"
 
 
 def test_update_centroids():
-    # Can test with some trivial and specific weight functions
-    pass
+    grid = np.array([[0, 0], [0, 1], [1, 0], [1, 1],
+                     [2, 0], [3, 0], [2, 1], [3, 1]])
+
+    assert grid.shape == (8, 2), 'Npoints x dimensions'
+    centroids = np.array([[0.5, 0.5], [2.5, 0.5]])
+
+    expected_clusters = [[0, 1, 2, 3], [4, 5, 6, 7]]
+    clusters = assign_points_to_centroids(grid, centroids)
+    assert clusters == expected_clusters
 
 
 def test_points_are_converged():
     pass
 
 
-def test_weighted_kmeans():
-    # Mock up the Gaussian example
-    # Maybe do this test in Jupyter, for visualisation
-    pass
+# def test_weighted_kmeans():
+#     # Mock up the Gaussian example
+#     # Maybe do this test in Jupyter, for visualisation
+#
+#     # Example of how to plot the overlying Voronoi tessellations
+#     from scipy.spatial import Voronoi, voronoi_plot_2d
+#     import matplotlib.pyplot as plt
+#
+#     # Generate random 2D points
+#     points = np.random.rand(10, 2)
+#     vor = Voronoi(points)
+#
+#     # Plot Voronoi diagram
+#     fig, ax = plt.subplots(figsize=(8, 6))
+#     voronoi_plot_2d(vor, ax=ax, show_vertices=False)
+#
+#     # Plot input points
+#     ax.plot(points[:, 0], points[:, 1], 'ro', markersize=5)
+#
+#     # Customize plot appearance
+#     ax.set_xlabel('X')
+#     ax.set_ylabel('Y')
+#     ax.set_title('Voronoi Tessellations')
+#     ax.grid(True)
+#     plt.show()
