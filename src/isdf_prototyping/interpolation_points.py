@@ -4,7 +4,7 @@
 * Weighted k-means clustering
 """
 
-from typing import List
+from typing import List, Tuple
 
 import numpy as np
 from scipy.spatial.distance import cdist
@@ -127,9 +127,9 @@ def points_are_converged(updated_points, points, tol, verbose=False) -> bool:
     return converged
 
 
-def verbose_print(*args, verbose=True, **kwargs):
+def verbose_print(str, verbose=True):
     if verbose:
-        print(*args, **kwargs)
+        print(str)
 
 
 def weighted_kmeans(
@@ -140,8 +140,8 @@ def weighted_kmeans(
     centroid_tol=1.0e-6,
     safe_mode=False,
     verbose=True,
-) -> np.ndarray:
-    """
+) -> Tuple[np.ndarray, int]:
+    """ Perform weighted k-means clustering.
 
     TODOs:
      * Describe algorithm
@@ -159,6 +159,12 @@ def weighted_kmeans(
     :param n_iter: Number of iterations to find optimal centroids
     :return: interpolation_points: Grid points for interpolating vectors, as defined by optimised centroids
     """
+    if n_iter < 1:
+        raise ValueError("n_iter must be non-negative.")
+
+    if grid_points.ndim != 2:
+        raise ValueError("Expect grid to be shaped (N_points, dim).")
+
     if safe_mode:
         indices = is_subgrid_on_grid(centroids, grid_points, 1.0e-6)
         n_off_grid = len(indices)
@@ -173,9 +179,9 @@ def weighted_kmeans(
 
     N_r, dim = grid_points.shape
 
-    if f_weight.shape[0] == N_r:
+    if f_weight.shape[0] != N_r:
         err_msg = (
-            "Number of sampling points defining the weight function differs to the size of the grid\n. "
+            f"Number of sampling points defining the weight function, {f_weight.shape[0]}, differs to the size of the grid {N_r}\n. "
             "Weight function must be defined on the same real-space grid as grid_points"
         )
         raise ValueError(err_msg)

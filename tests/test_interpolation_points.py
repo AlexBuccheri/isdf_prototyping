@@ -1,15 +1,12 @@
 import io
-import re
 import sys
-import textwrap
 from unittest.mock import patch
 
 import numpy as np
-import pytest
 
 from src.isdf_prototyping.interpolation_points import (
     assign_points_to_centroids,
-    is_subgrid_on_grid, update_centroids, points_are_converged,
+    is_subgrid_on_grid, update_centroids, points_are_converged, weighted_kmeans,
 )
 
 
@@ -18,6 +15,9 @@ def construct_2d_grid(x_p, y_p) -> np.ndarray:
 
     x and y args are the same ordering as with np.linspace
     i.e. start, stop, num
+
+    * JIT:
+    Can't use numba as np.meshgrid is not supported
 
     :param x_p:
     :param y_p:
@@ -119,6 +119,7 @@ class StdoutCapture:
 
     Could have also used @contextmanager to write a functional version
     """
+
     def __enter__(self):
         """ Redirect sys.stdout to an StringIO on entry
         """
@@ -161,28 +162,90 @@ def test_points_are_converged():
                                                 "[5.1 0.1] [5. 0.] 0.14142135623730925 1e-06\\n"
                                                 "[7.6 0.1] [7.5 0. ] 0.14142135623730925 1e-06\\n'")
 
-# def test_weighted_kmeans():
-#     # Mock up the Gaussian example
-#     # Maybe do this test in Jupyter, for visualisation
-#
-#     # Example of how to plot the overlying Voronoi tessellations
-#     from scipy.spatial import Voronoi, voronoi_plot_2d
-#     import matplotlib.pyplot as plt
-#
-#     # Generate random 2D points
-#     points = np.random.rand(10, 2)
-#     vor = Voronoi(points)
-#
-#     # Plot Voronoi diagram
-#     fig, ax = plt.subplots(figsize=(8, 6))
-#     voronoi_plot_2d(vor, ax=ax, show_vertices=False)
-#
-#     # Plot input points
-#     ax.plot(points[:, 0], points[:, 1], 'ro', markersize=5)
-#
-#     # Customize plot appearance
-#     ax.set_xlabel('X')
-#     ax.set_ylabel('Y')
-#     ax.set_title('Voronoi Tessellations')
-#     ax.grid(True)
-#     plt.show()
+
+def test_weighted_kmeans():
+    import matplotlib.pyplot as plt
+    from scipy.stats import multivariate_normal
+
+    # Place a Gaussian distribution in each quadrant of the cubic grid
+    mu1 = [2.5, 2.5]
+    mu2 = [7.5, 2.5]
+    mu3 = [2.5, 7.5]
+    mu4 = [7.5, 7.5]
+    cov = [[0.75, 0], [0, 0.75]]  # Covariance matrix: Diagonals are variances == std^2 i.e. (Gaussian width)^2
+
+    # Create a grid of points in 2D space
+    x = np.linspace(0, 10, 40)
+    y = np.linspace(0, 10, 40)
+    X, Y = np.meshgrid(x, y)
+    grid = np.dstack((X, Y))
+    # grid[1, 0, :] == grid2[40, :]
+
+    z1 = multivariate_normal.pdf(grid, mean=mu1, cov=cov)
+    z2 = multivariate_normal.pdf(grid, mean=mu2, cov=cov)
+    z3 = multivariate_normal.pdf(grid, mean=mu3, cov=cov)
+    z4 = multivariate_normal.pdf(grid, mean=mu4, cov=cov)
+    z_total = z1 + z2 + z3 + z4
+
+    # Plot the 2D Gaussian PDF
+    # fig = plt.figure()
+    # ax = fig.add_subplot(111, projection='3d')
+    # ax.plot_surface(X, Y, z1, cmap='viridis')
+    # plt.show()
+
+    # Number of interpolation points
+    grid_reshaped = grid.reshape(-1, 2)
+    assert grid_reshaped.shape == (1600, 2)
+    n_inter = 48
+
+    # random_indices = np.sort(np.random.choice(grid_reshaped.shape[0], size=n_inter))
+    random_indices =  [10, 19, 31, 39, 93, 119, 148, 242, 255, 262, 267, 359, 364, 377,
+    411,  436,  440,  457,  468,  477,  525,  562,  565,  592,  614,  624,  628,  662,
+    754,  832,  855,  877,  894,  971,  985, 1028, 1086, 1208, 1209, 1261, 1269, 1344,
+   1425, 1461, 1493, 1498, 1582, 1590]
+    assert len(random_indices) == n_inter
+
+    initial_centroids = grid_reshaped[random_indices, :]
+
+    # plt.figure(figsize=(8, 6))
+    # plt.contourf(X, Y, z_total, cmap='viridis')
+    # plt.colorbar(label='Probability Density')
+    # plt.scatter(initial_centroids[:, 0], initial_centroids[:, 1], color='red', label='Initial Centroids')
+    # plt.show()
+
+    weights = z_total.reshape(-1)
+    assert weights.shape == (1600,)
+    centroids, iter = weighted_kmeans(grid_reshaped, weights, initial_centroids,
+                                      n_iter=100, centroid_tol=1.0e-9,
+                                      safe_mode=True, verbose=False)
+
+
+    print(iter)
+    plt.figure(figsize=(8, 6))
+    plt.contourf(X, Y, z_total, cmap='viridis')
+    plt.colorbar(label='Probability Density')
+    plt.scatter(centroids[:, 0], centroids[:, 1], color='red', label='Initial Centroids')
+    plt.show()
+
+
+    # # Example of how to plot the overlying Voronoi tessellations
+    # from scipy.spatial import Voronoi, voronoi_plot_2d
+    # import matplotlib.pyplot as plt
+    #
+    # # Generate random 2D points
+    # points = np.random.rand(10, 2)
+    # vor = Voronoi(points)
+    #
+    # # Plot Voronoi diagram
+    # fig, ax = plt.subplots(figsize=(8, 6))
+    # voronoi_plot_2d(vor, ax=ax, show_vertices=False)
+    #
+    # # Plot input points
+    # ax.plot(points[:, 0], points[:, 1], 'ro', markersize=5)
+    #
+    # # Customize plot appearance
+    # ax.set_xlabel('X')
+    # ax.set_ylabel('Y')
+    # ax.set_title('Voronoi Tessellations')
+    # ax.grid(True)
+    # plt.show()
