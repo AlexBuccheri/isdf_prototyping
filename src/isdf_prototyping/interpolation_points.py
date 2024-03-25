@@ -67,25 +67,29 @@ def assign_points_to_centroids(grid_points: np.ndarray, centroids: np.ndarray) -
         point = grid_points[ir, :][None, :]
         # distance matrix has shape (1, N_interp)
         distance_matrix = cdist(point, centroids).reshape(-1)
-        # min(|r_{ir} - centroids|)
-        min_index = np.argmin(distance_matrix)
-        # If two or more elements are equally minimal, argmin will always return the first instance
-        # Instead, we find all equally minimum indices
-        min_indices = np.argwhere(distance_matrix == distance_matrix[min_index])[:, 0]
-        icen = np.random.choice(min_indices)
+        # min(|r_{ir} - initial_centroids|)
+
+        # TODO(Alex) Reintroduce once testing of k-means is done
+        # min_index = np.argmin(distance_matrix)
+        # # If two or more elements are equally minimal, argmin will always return the first instance
+        # # Instead, we find all equally minimum indices
+        # min_indices = np.argwhere(distance_matrix == distance_matrix[min_index])[:, 0]
+        # icen = np.random.choice(min_indices)
+
+        icen = np.argmin(distance_matrix)
         clusters[icen].append(ir)
     return clusters
 
 
 def update_centroids(grid_points, f_weight, clusters: cluster_type) -> np.ndarray:
-    """Compute a new set of centroids
+    """Compute a new set of initial_centroids
 
-    We have as many clusters as we do centroids
+    We have as many clusters as we do initial_centroids
 
     :param grid_points: Grid
     :param f_weight: Weight function
     :param clusters: Grid point indices associated with each cluster
-    :return: updated_centroids: Updated centroids
+    :return: updated_centroids: Updated initial_centroids
     """
     N_interp = len(clusters)
     dim = grid_points.shape[1]
@@ -135,7 +139,7 @@ def verbose_print(str, verbose=True):
 def weighted_kmeans(
     grid_points: np.ndarray,
     f_weight: np.ndarray,
-    centroids: np.ndarray,
+    initial_centroids: np.ndarray,
     n_iter=200,
     centroid_tol=1.0e-6,
     safe_mode=False,
@@ -152,7 +156,7 @@ def weighted_kmeans(
 
     :param grid_points: Real space grid
     :param f_weight: Weight function
-    :param centroids: Initial centroids. A good choice is a set of N randomly (or uniformly) distributed
+    :param initial_centroids: Initial centroids. A good choice is a set of N randomly (or uniformly) distributed
     points.
     The size of this array defines the number of interpolating grid points, N.
     These points must be part of the set of grid_points (?)
@@ -166,15 +170,15 @@ def weighted_kmeans(
         raise ValueError("Expect grid to be shaped (N_points, dim).")
 
     if safe_mode:
-        indices = is_subgrid_on_grid(centroids, grid_points, 1.0e-6)
+        indices = is_subgrid_on_grid(initial_centroids, grid_points, 1.0e-6)
         n_off_grid = len(indices)
         if n_off_grid > 0:
             print(
-                f"{n_off_grid} out of {centroids.shape[0]} centroids are not defined on the real-space grid"
+                f"{n_off_grid} out of {initial_centroids.shape[0]} initial_centroids are not defined on the real-space grid"
             )
             print("# Index     Point")
             for i in indices:
-                print(i, centroids[i, :])
+                print(i, initial_centroids[i, :])
             raise ValueError()
 
     N_r, dim = grid_points.shape
@@ -187,12 +191,13 @@ def weighted_kmeans(
         raise ValueError(err_msg)
 
     verbose_print("Centroid Optimisation", verbose)
+    centroids = np.copy(initial_centroids)
 
     for t in range(0, n_iter):
         clusters = assign_points_to_centroids(grid_points, centroids)
         updated_centroids = update_centroids(grid_points, f_weight, clusters)
         verbose_print(f"Step {t}", verbose)
-        converged = points_are_converged(centroids, updated_centroids, centroid_tol, verbose=verbose)
+        converged = points_are_converged(updated_centroids, centroids, centroid_tol, verbose=verbose)
         if converged:
             return updated_centroids, t
         centroids = updated_centroids
