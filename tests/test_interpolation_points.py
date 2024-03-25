@@ -1,10 +1,15 @@
+import io
+import re
+import sys
+import textwrap
 from unittest.mock import patch
 
 import numpy as np
+import pytest
 
 from src.isdf_prototyping.interpolation_points import (
     assign_points_to_centroids,
-    is_subgrid_on_grid, update_centroids,
+    is_subgrid_on_grid, update_centroids, points_are_converged,
 )
 
 
@@ -100,18 +105,61 @@ def test_update_centroids():
 
     # Centroids are chosen in optimal positions.
     # With uniform weighting, one does not expect them to change
+    # Note that differences in centroid positions has no effect on the call
+    # - what matters is what cluster grid points are assigned to
     uniform_weight = np.empty(shape=N_r)
     uniform_weight.fill(1. / N_r)
     new_centroids = update_centroids(grid, uniform_weight, expected_clusters)
     assert np.allclose(new_centroids, centroids)
 
-    # Optimally-positioned centroids with some noise added
 
+class StdoutCapture:
+    """ Custom context manager (defines __enter__ and __exit__ methods for the with block).
+        Therefore, need to exit the with block before the captured stdout is returned
+
+    Could have also used @contextmanager to write a functional version
+    """
+    def __enter__(self):
+        """ Redirect sys.stdout to an StringIO on entry
+        """
+        self.stdout_buffer = io.StringIO()
+        sys.stdout = self.stdout_buffer
+        return self.stdout_buffer
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        """ Reset IO stream on exit
+        """
+        sys.stdout = sys.__stdout__
+        if exc_type is not None:
+            # If an exception occurred, let it propagate
+            return False
 
 
 def test_points_are_converged():
-    pass
+    # 2D grid, using arbitrary limits
+    grid = construct_2d_grid((0, 10, 5), (0, 1, 5))
+    assert grid.shape == (25, 2), "N grid points by M dimensions"
 
+    # Add an erroneous point
+    updated_grid = np.copy(grid)
+    updated_grid[0, :] += np.array([0.1, 0.1])
+
+    converged = points_are_converged(updated_grid, grid, tol=1.e-6)
+    assert not converged, "First point differs between grids"
+
+    # Test verbose
+    with StdoutCapture() as stdout_buffer:
+        # Multiple sources of failure
+        updated_grid[1:4, :] += np.array([0.1, 0.1])
+        converged = points_are_converged(updated_grid, grid, tol=1.e-6, verbose=True)
+        captured_stdout = stdout_buffer
+
+    assert repr(captured_stdout.getvalue()) == ("'Convergence: 4 points out of 25 are not converged:\\n"
+                                                "# Current Point    Prior Point    |ri - r_{i-1}|   tol\\n"
+                                                "[0.1 0.1] [0. 0.] 0.14142135623730953 1e-06\\n"
+                                                "[2.6 0.1] [2.5 0. ] 0.14142135623730956 1e-06\\n"
+                                                "[5.1 0.1] [5. 0.] 0.14142135623730925 1e-06\\n"
+                                                "[7.6 0.1] [7.5 0. ] 0.14142135623730925 1e-06\\n'")
 
 # def test_weighted_kmeans():
 #     # Mock up the Gaussian example

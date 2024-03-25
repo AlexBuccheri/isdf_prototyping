@@ -110,9 +110,9 @@ def points_are_converged(updated_points, points, tol, verbose=False) -> bool:
     :return:
     """
     vector_diffs = updated_points - points
-    norm = np.linalg.norm(vector_diffs)
+    norm = np.linalg.norm(vector_diffs, axis=1)
     indices = np.where(norm > tol)[0]
-    converged = len(indices) == 0
+    converged = indices.size == 0
 
     if verbose:
         N = updated_points.shape[0]
